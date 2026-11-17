@@ -219,10 +219,10 @@ ESP32-S3 เป็นสะพานอย่างเดียว: อ่าน
 
 | บทบาท | ผู้รับผิดชอบ | งานหลัก | เขียนในรายงาน |
 | --- | --- | --- | --- |
-| Embedded Developer (STM32) | (ใส่ชื่อ) | CubeMX config, `input.c`, `led.c`, `game.c` state machine, `link.c` ฝั่ง STM32 | การอ่าน encoder ด้วย timer, PWM ผสมสี, state machine, debounce |
-| Connectivity & Cloud (ESP32-S3) | (ใส่ชื่อ) | WiFi, NTP, parser UART ฝั่ง ESP32, Firebase stream/push, คิวตอนเน็ตหลุด, security rules | โปรโตคอล, โครงข้อมูลคลาวด์, การจัดการเน็ตหลุด |
-| UI/UX & Web | (ใส่ชื่อ) | ออกแบบหน้าจอ, หน้า Live/Setup/Stats, กราฟ, deploy Firebase Hosting | การออกแบบ UI, การคำนวณสถิติ, real-time update |
-| System Architect & Team Lead | (ใส่ชื่อ) | ออกแบบระบบรวม, ต่อวงจร, ทำกล่อง, integration test, Git, weekly report, รวมรายงาน, คุมสคริปต์เดโม | สถาปัตยกรรม, การต่อวงจร, การทดสอบ, การจัดการทีม |
+| Embedded Developer (STM32) | (Ice) | CubeMX config, `input.c`, `led.c`, `game.c` state machine, `link.c` ฝั่ง STM32 | การอ่าน encoder ด้วย timer, PWM ผสมสี, state machine, debounce |
+| Connectivity & Cloud (ESP32-S3) | (Pin) | WiFi, NTP, parser UART ฝั่ง ESP32, Firebase stream/push, คิวตอนเน็ตหลุด, security rules | โปรโตคอล, โครงข้อมูลคลาวด์, การจัดการเน็ตหลุด |
+| UI/UX & Web | (Ooh) | ออกแบบหน้าจอ, หน้า Live/Setup/Stats, กราฟ, deploy Firebase Hosting | การออกแบบ UI, การคำนวณสถิติ, real-time update |
+| System Architect & Team Lead| (Boeing) | ออกแบบระบบรวม, ต่อวงจร, ทำกล่อง, integration test, Git, weekly report, รวมรายงาน, คุมสคริปต์เดโม | สถาปัตยกรรม, การต่อวงจร, การทดสอบ, การจัดการทีม |
 
 **ช่วยกันทุกคน:** ทดสอบรวมระบบ ซ้อมเดโม และรีวิว Pull Request ของกันและกัน
 
