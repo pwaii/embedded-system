@@ -1,0 +1,40 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    "device": {
+      "status": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['state', 'players', 'limit_s', 'turn_no', 'player', 'remaining_ms', 'updated_at'])",
+        "state": { ".validate": "newData.isString() && newData.val().matches(/^(SETUP|READY|RUN|PAUSE|OVER)$/)" },
+        "players": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6" },
+        "limit_s": { ".validate": "newData.isNumber() && newData.val() >= 10 && newData.val() <= 300" },
+        "remaining_ms": { ".validate": "newData.isNumber()" },
+        "updated_at": { ".validate": "newData.isNumber() && newData.val() <= now" }
+      },
+      "config": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['players', 'limit_s'])",
+        "players": { ".validate": "newData.isNumber() && newData.val() >= 2 && newData.val() <= 6" },
+        "limit_s": { ".validate": "newData.isNumber() && newData.val() >= 10 && newData.val() <= 300 && newData.val() % 5 == 0" },
+        "names": {
+          "$idx": { ".validate": "$idx.matches(/^[1-6]$/) && newData.isString() && newData.val().length <= 16" }
+        }
+      },
+      "command": {
+        ".write": "auth != null",
+        ".validate": "!newData.exists() || newData.child('cmd').val().matches(/^(START|PAUSE|RESUME|END|RESET)$/)"
+      }
+    },
+    "games": {
+      "$game_id": {
+        ".write": "auth != null",
+        ".validate": "$game_id.matches(/^[0-9a-f]{8}$/)",
+        "turns": {
+          "$turn": {
+            ".validate": "$turn.matches(/^t[0-9]{3}$/) && newData.hasChildren(['turn_no', 'player', 'duration_ms', 'overtime_ms'])"
+          }
+        }
+      }
+    }
+  }
+}

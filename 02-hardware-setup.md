@@ -10,6 +10,8 @@
 - [ ] KY-040 ×1, KY-004 ×1, KY-016 ×1 จากชีตของวิชา
 - [ ] ตัวต้านทาน 220Ω ×3, breadboard, สายจัมเปอร์
 - [ ] กล่องสำหรับใส่เครื่อง (ตัดจากกล่องกระดาษแข็ง/อะคริลิก หรือพิมพ์ 3D)
+- [ ] USB-to-Serial (CP2102/CH340, 3.3V) ×1 ให้ EMB กับ NET ทดสอบ UART แยกกันได้
+- [ ] Powerbank 2 ช่อง (≥ 2A รวม) สำหรับวันเดโม
 
 ## 2.2 การต่อขา (NUCLEO-F411RE)
 
@@ -51,12 +53,12 @@
 - **KY-040** มี pull-up 10kΩ บนโมดูลที่ CLK/DT แล้ว ป้อนไฟ 3.3V (ไม่ใช่ 5V) เพื่อไม่ให้สัญญาณเกินแรงดันขา
 - **KY-004** ตรวจขาด้วยมัลติมิเตอร์ก่อน แต่ละล็อตต่อตัวต้านทานต่างกัน แล้วตั้งให้เป็นแบบ active-low พร้อม pull-up ภายใน
 - **TX ต่อ RX ไขว้กัน** ระหว่าง STM32 กับ ESP32 ทั้งคู่เป็น logic 3.3V ต่อตรงได้ไม่ต้องแปลงระดับ
-- **ไฟเลี้ยง:** ช่วงพัฒนาใช้ USB แยกสองเส้น ตอนเดโมใช้ powerbank จ่าย Nucleo แล้วจ่าย ESP32-S3 จากขา 5V ของ Nucleo ได้ (ทดสอบกระแสก่อน)
+- **ไฟเลี้ยง:** ช่วงพัฒนาใช้ USB แยกสองเส้น ตอนเดโมใช้ powerbank 2 ช่อง จ่าย Nucleo และ ESP32-S3 คนละช่อง (ไม่จ่าย ESP32 จากขา 5V ของ Nucleo เพราะ ESP32-S3 กินไฟพีค 350–500 mA ตอนส่ง WiFi อาจรีเซ็ตเอง ดู [architecture D8](docs/architecture.md#7-key-decisions-adr-lite)) แต่ GND ยังต้องต่อร่วมกัน
 
 **เช็กก่อนเสียบ USB**
 
 - [ ] วัดความต้านทานระหว่างราง 3V3 กับ GND ต้องไม่เป็น 0Ω (ไม่ช็อต)
-- [ ] ไม่มีสายไหนต่อเข้า 5V นอกจากไฟเลี้ยง ESP32 ตอนเดโม
+- [ ] ไม่มีสายไหนต่อเข้าขา 5V ของ Nucleo
 - [ ] ทดสอบทีละโมดูล: encoder (ดูค่าผ่าน `printf`) → ปุ่ม → LED
 
 ## 2.3 Firmware บน STM32
@@ -82,7 +84,7 @@
 | `game.c/.h` | state machine, ข้อมูลผู้เล่น, คำนวณเวลาที่เหลือ/overtime |
 | `input.c/.h` | อ่าน encoder (`__HAL_TIM_GET_COUNTER(&htim2)` หาร 4 ต่อ 1 คลิก ตรวจกับโมดูลจริง), debounce 30 ms, แยกกดสั้น/กดค้าง |
 | `led.c/.h` | `led_set_rgb(r,g,b)`, กะพริบ, fade โดยคำนวณจาก `HAL_GetTick()` |
-| `link.c/.h` | ส่ง/รับข้อความ UART กับ ESP32, parser แบบทีละบรรทัด |
+| `link.c/.h` | ส่ง/รับข้อความ UART กับ ESP32 โดยใช้ parser กลาง [`common/proto.c`](common/proto.c) (ใช้ร่วมกับ ESP32) |
 
 **โครง main loop**
 
@@ -108,24 +110,19 @@ while (1) {
 
 ใช้ข้อความ ASCII ทีละบรรทัด คั่นด้วย `,` จบด้วย `\n` ที่ 115200 baud อ่านด้วยตาได้ใน Serial Monitor จึง debug ง่าย และไม่ต้องใช้ไลบรารี JSON บน STM32
 
-| ทิศทาง | ข้อความ | ส่งเมื่อ | ตัวอย่าง |
-| --- | --- | --- | --- |
-| STM32 → ESP32 | `HELLO,<fw_version>` | เปิดเครื่อง | `HELLO,1.0` |
-| STM32 → ESP32 | `START,<players>,<limit_s>` | เริ่มเกม | `START,4,60` |
-| STM32 → ESP32 | `STATE,<state>,<player>,<remaining_ms>` | ทุก 1 วินาที | `STATE,RUN,2,41500` |
-| STM32 → ESP32 | `TURN,<turn_no>,<player>,<duration_ms>,<overtime 0/1>` | จบแต่ละเทิร์น | `TURN,7,2,72300,1` |
-| STM32 → ESP32 | `END,<total_turns>` | จบเกม | `END,24` |
-| ESP32 → STM32 | `CFG,<players>,<limit_s>` | เปลี่ยนค่าจากเว็บ | `CFG,3,90` |
-| ESP32 → STM32 | `CMD,<PAUSE/RESUME/RESET/START>` | กดปุ่มบนเว็บ | `CMD,PAUSE` |
-| ESP32 → STM32 | `WIFI,<0/1>` | สถานะเน็ตเปลี่ยน | `WIFI,1` |
-| ทั้งสองทาง | `ACK,<type>` / `ERR,<reason>` | ตอบรับคำสั่ง | `ACK,CFG` |
+**สเปกฉบับล็อก: [`docs/protocol.md`](docs/protocol.md) (v1.0)** ข้อความทั้งหมด ช่วงค่า และกติกาความทนทานอยู่ที่นั่นที่เดียว โค้ด parse/format อยู่ที่ [`common/proto.c`](common/proto.c) ใช้ร่วมกันทั้ง STM32 และ ESP32 พร้อมเทสต์ (`make -C common test`)
 
-**กติกา**
+ตัวอย่างหน้าตา:
 
-- ผู้เล่นนับจาก 1, เวลาเป็นมิลลิวินาทีเสมอ (ยกเว้น `limit_s` เป็นวินาที)
-- ฝั่งรับต้องทิ้งบรรทัดที่ยาวเกิน 64 ตัวอักษรหรือ parse ไม่ได้ ไม่ให้ค้าง
-- ถ้า ESP32 ไม่ได้ต่อเน็ต (`WIFI,0`) เครื่องยังเล่นได้ตามปกติ ESP32 เก็บ `TURN` ไว้ในคิวแล้วค่อยส่งเมื่อเน็ตกลับมา
-- ระหว่างพัฒนา ใช้ USB-to-Serial หรือ Serial Monitor ของ ESP32 จำลองอีกฝั่ง ทำให้ทีม STM32 กับทีม ESP32 ทำงานขนานกันได้
+```
+STM> START,9f03c2aa,4,20
+STM> STATE,9f03c2aa,RUN,4,20,1,1,13500      (game_id, state, players, limit_s, turn_no, player, remaining_ms)
+STM> TURN,9f03c2aa,1,1,17250,0              (game_id, turn_no, player, duration_ms, overtime_ms)
+ESP> ACK,TURN,1
+ESP> CMD,PAUSE
+```
+
+ระหว่างพัฒนา ใช้ [`tools/fake_device.py`](tools/fake_device.py) จำลองเครื่องแทน STM32 ได้ ทำให้ทีม ESP32 และเว็บเริ่มงานได้ก่อนฮาร์ดแวร์เสร็จ
 
 ## 2.5 ESP32-S3 และคลาวด์
 
@@ -141,28 +138,7 @@ ESP32-S3 เป็นสะพานอย่างเดียว: อ่าน
 - ไลบรารี Firebase สำหรับ Arduino-ESP32 (เช่น FirebaseClient ของ Mobizt) ใช้ stream ฟัง `/device/config` และ `/device/command`
 - เก็บ WiFi SSID/password และ Firebase key ในไฟล์ `secrets.h` ที่อยู่ใน `.gitignore` (repo ต้องเป็น public ห้าม commit กุญแจ)
 
-**โครงข้อมูลใน Realtime Database**
-
-```
-/device
-  /status    { state, player, remaining_ms, wifi, updated_at }    ← ESP32 เขียนทุก 1 วินาที
-  /config    { players, limit_s, names: ["A","B","C","D"] }      ← เว็บเขียน, ESP32 ฟัง → CFG
-  /command   { cmd: "PAUSE", ts }                                 ← เว็บเขียน, ESP32 ฟัง → CMD
-/games/{gameId}
-  /meta      { started_at, ended_at, players, limit_s, names }
-  /turns/{pushId} { turn_no, player, duration_ms, overtime, ts }  ← ESP32 push ทุก TURN
-```
-
-**การแปลงข้อความ**
-
-| รับจาก STM32 | ESP32 ทำอะไร |
-| --- | --- |
-| `START` | สร้าง `gameId` ใหม่ (ใช้ timestamp) เขียน `/games/{gameId}/meta` |
-| `STATE` | เขียนทับ `/device/status` |
-| `TURN` | push ลง `/games/{gameId}/turns` (ถ้าเน็ตหลุดเก็บในคิวก่อน) |
-| `END` | ใส่ `ended_at` ใน meta |
-
-**Security rules:** ช่วงพัฒนาเปิดอ่าน-เขียนได้ แต่ก่อนเดโมควรจำกัดให้ต้อง sign-in (เช่น Anonymous Auth) เพื่อไม่ให้ใครเขียนข้อมูลเล่นได้
+**โครงข้อมูล การแปลงข้อความ UART ↔ DB และ security rules:** ดู [`docs/cloud.md`](docs/cloud.md) (v1.0) และ [`firebase/database.rules.json`](firebase/database.rules.json) ใช้ Anonymous Auth ตั้งแต่วันแรก
 
 ## 2.6 เว็บแดชบอร์ด
 
@@ -171,8 +147,8 @@ ESP32-S3 เป็นสะพานอย่างเดียว: อ่าน
 **สถิติที่คำนวณบนเว็บ** (จาก `/games/{gameId}/turns`)
 
 - เวลาเฉลี่ย, มัธยฐาน และเทิร์นที่นานที่สุดของแต่ละคน
-- อัตราการเกินเวลา = จำนวนเทิร์นที่ `overtime = 1` ÷ จำนวนเทิร์นทั้งหมดของคนนั้น
+- อัตราการเกินเวลา = จำนวนเทิร์นที่ `overtime_ms > 0` ÷ จำนวนเทิร์นทั้งหมดของคนนั้น
 - ฉายาท้ายเกมเพื่อความสนุกตอนเดโม เช่น "นักคิดแห่งโต๊ะ" (เฉลี่ยนานสุด), "สายฟ้าแลบ" (เร็วสุด)
 
-**สถานะออนไลน์:** ถ้า `/device/status/updated_at` เก่ากว่า 5 วินาที แสดงว่าเครื่องออฟไลน์
+**สถานะออนไลน์:** ถ้า `/device/status/updated_at` เก่ากว่า 5 วินาที แสดงว่าเครื่องออฟไลน์ (รายละเอียดการแสดงผล เช่น นับถอยหลังให้ลื่น ดู [`docs/cloud.md`](docs/cloud.md) §4)
 

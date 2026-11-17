@@ -1,0 +1,24 @@
+# secrets — never commit
+esp32/**/secrets.h
+web/.env.local
+web/.env*.local
+*.pem
+
+# STM32CubeIDE build output
+stm32/**/Debug/
+stm32/**/Release/
+stm32/**/.settings/
+
+# PlatformIO / Arduino
+esp32/**/.pio/
+esp32/**/build/
+
+# web
+web/node_modules/
+web/dist/
+web/.firebase/
+
+# host builds
+common/test_proto
+__pycache__/
+.DS_Store

@@ -23,7 +23,7 @@ Oct 23, 2026 · @Naraya
 
 ## พฤติกรรมของเครื่อง
 
-เครื่องมี 4 สถานะ: SETUP → RUNNING ⇄ PAUSED → GAME\_OVER
+เครื่องมี 5 สถานะ: SETUP → (READY) → RUN ⇄ PAUSE → OVER โดย READY คือได้ค่าตั้งจากเว็บแล้วรอกดเริ่ม (ผัง state machine เต็มอยู่ใน [docs/architecture.md](docs/architecture.md#4-stm32-state-machine))
 
 | การกระทำ | SETUP | RUNNING | PAUSED |
 | --- | --- | --- | --- |
@@ -49,7 +49,17 @@ Oct 23, 2026 · @Naraya
 
 ## ผังระบบ
 
-&#91;embedded content: system architecture · 3 modules, STM32, ESP32-S3, cloud\]
+```mermaid
+flowchart LR
+    ENC["KY-040 encoder"] --> STM["STM32F411<br/>ตรรกะเกม"]
+    BTN["KY-004 ปุ่ม"] --> STM
+    STM --> LED["KY-016 RGB LED"]
+    STM <-->|"UART 115200"| ESP["ESP32-S3<br/>สะพาน WiFi"]
+    ESP <--> FB[("Firebase<br/>Realtime DB")]
+    FB <--> WEB["เว็บแดชบอร์ด<br/>Live · Setup · Stats"]
+```
+
+รายละเอียดการไหลของข้อมูล การจัดการเน็ตหลุด และเหตุผลของการออกแบบ: [docs/architecture.md](docs/architecture.md)
 
 | ส่วน | หน้าที่ |
 | --- | --- |
